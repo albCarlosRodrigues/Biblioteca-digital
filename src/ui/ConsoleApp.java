@@ -46,6 +46,9 @@ public final class ConsoleApp {
                             System.out.println("Autor: " + autor); mostrar(livros);
                         });
                         case 12 -> System.out.println(biblioteca.buscarUsuario(input.texto("E-mail: ")));
+                        case 13 -> System.out.println(biblioteca.buscarLivro(input.texto("Título do livro: ")));
+                        case 14 -> mostrar(biblioteca.listarDisponiveis());
+                        case 15 -> mostrar(biblioteca.listarHistoricoEmprestimos());
                         default -> System.out.println("Opção inválida.");
                     }
                 } catch (RegraNegocioException | IllegalArgumentException e) {
@@ -152,6 +155,9 @@ public final class ConsoleApp {
         linha("> 10. Sair do sistema");
         linha("> 11. Agrupar livros por autor");
         linha("> 12. Buscar usuário por e-mail");
+        linha("> 13. Buscar livro por título");
+        linha("> 14. Listar livros disponíveis");
+        linha("> 15. Consultar histórico de empréstimos");
         linha("");
         borda();
     }

@@ -2,6 +2,10 @@ package model;
 
 import exception.RegraNegocioException;
 import java.io.Serializable;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -14,6 +18,7 @@ public final class Biblioteca implements Serializable {
     private static final long serialVersionUID = 1L;
     private final ArrayList<Livro> livros = new ArrayList<>();
     private final ArrayList<Usuario> usuarios = new ArrayList<>();
+    private ArrayList<RegistroEmprestimo> historicoEmprestimos = new ArrayList<>();
 
     // shortcut: um cadastro por título; adotar ISBN/exemplares se a biblioteca exigir cópias.
     public Livro cadastrarLivro(String titulo, String autor, int ano) {
@@ -68,11 +73,22 @@ public final class Biblioteca implements Serializable {
     public void emprestar(String titulo, String email) {
         Livro livro = buscarLivro(titulo);
         Usuario usuario = buscarUsuario(email);
+        RegistroEmprestimo registro = new RegistroEmprestimo(livro.getTitulo(), usuario.getNome(),
+                usuario.getEmail(), LocalDateTime.now(ZoneId.of("America/Sao_Paulo")));
         livro.emprestar(usuario);
+        historicoEmprestimos.add(registro);
     }
 
     public void devolver(String titulo) { buscarLivro(titulo).devolver(); }
     public List<Livro> listarEmprestados() { return livros.stream().filter(Livro::isEmprestado).toList(); }
+    public List<Livro> listarDisponiveis() { return livros.stream().filter(l -> !l.isEmprestado()).toList(); }
+    public List<RegistroEmprestimo> listarHistoricoEmprestimos() { return List.copyOf(historicoEmprestimos); }
+
+    private void readObject(ObjectInputStream entrada) throws IOException, ClassNotFoundException {
+        entrada.defaultReadObject();
+        // Arquivos da versão anterior não possuem histórico; não inventa datas antigas.
+        if (historicoEmprestimos == null) historicoEmprestimos = new ArrayList<>();
+    }
 
     public void validarDadosCarregados() {
         if (livros == null || usuarios == null) throw new IllegalArgumentException("Listas ausentes.");
@@ -90,6 +106,14 @@ public final class Biblioteca implements Serializable {
                 if (!cadastrado.getNome().equals(u.getNome())) {
                     throw new IllegalArgumentException("Empréstimo com usuário inconsistente.");
                 }
+            }
+        }
+        for (RegistroEmprestimo registro : historicoEmprestimos) {
+            if (registro == null) throw new IllegalArgumentException("Registro de empréstimo nulo.");
+            validada.buscarLivro(registro.titulo());
+            Usuario usuario = validada.buscarUsuario(registro.emailUsuario());
+            if (!usuario.getNome().equals(registro.nomeUsuario())) {
+                throw new IllegalArgumentException("Histórico com usuário inconsistente.");
             }
         }
     }

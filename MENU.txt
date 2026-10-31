@@ -27,5 +27,8 @@
 | > 10. Sair do sistema                                                                        |
 | > 11. Agrupar livros por autor                                                               |
 | > 12. Buscar usuário por e-mail                                                              |
+| > 13. Buscar livro por título                                                                |
+| > 14. Listar livros disponíveis                                                              |
+| > 15. Consultar histórico de empréstimos                                                     |
 |                                                                                              |
 +----------------------------------------------------------------------------------------------+

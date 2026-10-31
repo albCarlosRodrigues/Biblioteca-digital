@@ -1,6 +1,7 @@
 package model;
 
 import exception.RegraNegocioException;
+import exception.LivroIndisponivelException;
 import java.io.Serializable;
 import java.time.Year;
 import java.util.Comparator;
@@ -23,7 +24,7 @@ public final class Livro implements Serializable, Comparable<Livro> {
 
     public void emprestar(Usuario usuario) {
         if (usuario == null) throw new IllegalArgumentException("Usuário é obrigatório.");
-        if (isEmprestado()) throw new RegraNegocioException("Livro indisponível: já está emprestado.");
+        if (isEmprestado()) throw new LivroIndisponivelException();
         emprestadoPara = usuario;
     }
 

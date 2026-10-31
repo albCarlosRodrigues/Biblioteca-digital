@@ -71,6 +71,7 @@ O projeto aplica os seguintes conceitos:
 * manipulação de arquivos com `Files` e `Path`;
 * `ObjectInputStream` e `ObjectOutputStream`;
 * filtro de desserialização com `ObjectInputFilter`;
+* records imutáveis e `LocalDateTime` para o histórico;
 * fechamento de recursos com `try-with-resources`;
 * entrada de dados com `Scanner`;
 * laço de repetição e `switch`;
@@ -296,6 +297,38 @@ Como a chave é o texto armazenado, grafias diferentes, inclusive diferenças de
 
 ---
 
+## Busca de livro por título
+
+A opção `13` solicita o título completo e consulta o cadastro usando Stream e `equalsIgnoreCase()`. Maiúsculas, minúsculas e espaços externos não alteram a busca. Quando não existe correspondência, informa `Erro: Livro não cadastrado.`.
+
+```text
+Escolha uma opção: 13
+Título do livro: DOM CASMURRO
+Dom Casmurro | Machado de Assis | 1899 | Disponível
+```
+
+---
+
+## Listagem de livros disponíveis
+
+A opção `14` apresenta somente os livros disponíveis para empréstimo, usando `listarDisponiveis()` e um filtro por `!isEmprestado()`. Um empréstimo retira o livro dessa consulta; a devolução o inclui novamente. Sem resultados, exibe `Nenhum registro encontrado.`.
+
+---
+
+## Histórico de empréstimos
+
+A opção `15` apresenta cada empréstimo bem-sucedido, em ordem de registro, incluindo título, nome e e-mail do usuário e data e horário da retirada. Os horários seguem `America/Sao_Paulo` e são exibidos em `dd/MM/yyyy HH:mm:ss`.
+
+```text
+Dom Casmurro | Usuário: Ana Silva | ana@exemplo.com | Empréstimo em: 31/10/2026 10:30:00
+```
+
+A data acima é ilustrativa. O registro real é criado automaticamente no momento da retirada. Devolver o livro não apaga o registro; um novo empréstimo acrescenta outro item, mesmo que seja para o mesmo usuário. Tentativas rejeitadas não criam entradas no histórico.
+
+O histórico é salvo junto da biblioteca em `dados/biblioteca.dat`. Arquivos antigos continuam aceitos, com histórico inicialmente vazio: cadastros e empréstimos ativos são preservados, mas não é possível reconstruir retiradas ou horários que nunca foram armazenados.
+
+---
+
 ## Busca de usuário por e-mail
 
 Localiza um usuário pelo e-mail cadastrado.
@@ -346,6 +379,9 @@ Se a gravação falhar durante essa tentativa, a aplicação informa o problema 
 | > 10. Sair do sistema                                                                        |
 | > 11. Agrupar livros por autor                                                               |
 | > 12. Buscar usuário por e-mail                                                              |
+| > 13. Buscar livro por título                                                                |
+| > 14. Listar livros disponíveis                                                              |
+| > 15. Consultar histórico de empréstimos                                                     |
 |                                                                                              |
 +----------------------------------------------------------------------------------------------+
 ```
@@ -372,7 +408,7 @@ Opção inválida.
 
 O estado do empréstimo é derivado da referência ao usuário:
 
-```java
+```text
 public boolean isEmprestado() {
     return emprestadoPara != null;
 }
@@ -462,11 +498,13 @@ A busca direta de livro ou usuário exige um cadastro correspondente e lança um
 
 O projeto utiliza a exceção personalizada:
 
-```java
+```text
 RegraNegocioException
 ```
 
-Ela representa situações como:
+`LivroIndisponivelException` estende `RegraNegocioException` e é lançada especificamente ao tentar emprestar um livro já emprestado. A UI continua tratando essa falha pela classe base.
+
+A classe base também representa situações como:
 
 * título de livro já cadastrado;
 * e-mail já cadastrado;
@@ -477,7 +515,7 @@ Ela representa situações como:
 
 Na interface, as exceções de negócio e os argumentos inválidos são capturados para mostrar uma mensagem e continuar a execução:
 
-```java
+```text
 catch (RegraNegocioException | IllegalArgumentException e) {
     System.out.println("Erro: " + e.getMessage());
 }
@@ -494,11 +532,13 @@ Biblioteca_Digital
 ├── src
 │   ├── Main.java
 │   ├── exception
-│   │   └── RegraNegocioException.java
+│   │   ├── RegraNegocioException.java
+│   │   └── LivroIndisponivelException.java
 │   ├── model
 │   │   ├── Livro.java
 │   │   ├── Usuario.java
-│   │   └── Biblioteca.java
+│   │   ├── Biblioteca.java
+│   │   └── RegistroEmprestimo.java
 │   ├── persistence
 │   │   └── BibliotecaArquivo.java
 │   └── ui
@@ -554,7 +594,7 @@ O domínio concentra as regras de cadastro e empréstimo. A camada de persistên
 
 Ponto de entrada da aplicação. Define o caminho do arquivo de dados, cria `BibliotecaArquivo` e inicia `ConsoleApp`.
 
-```java
+```text
 Path arquivo = Path.of(args.length == 0 ? "dados/biblioteca.dat" : args[0]);
 new ConsoleApp(new BibliotecaArquivo(arquivo)).executar();
 ```
@@ -569,7 +609,7 @@ Representa um livro do acervo.
 
 Principais atributos:
 
-```java
+```text
 private final String titulo;
 private final String autor;
 private final int anoPublicacao;
@@ -589,7 +629,7 @@ Responsabilidades:
 
 Implementa:
 
-```java
+```text
 Serializable, Comparable<Livro>
 ```
 
@@ -601,7 +641,7 @@ Representa um usuário cadastrado.
 
 Principais atributos:
 
-```java
+```text
 private final String nome;
 private final String email;
 ```
@@ -624,14 +664,14 @@ Concentra o gerenciamento dos cadastros e as consultas do domínio.
 
 Armazenamento:
 
-```java
+```text
 private final ArrayList<Livro> livros = new ArrayList<>();
 private final ArrayList<Usuario> usuarios = new ArrayList<>();
 ```
 
 Principais operações:
 
-```java
+```text
 cadastrarLivro(titulo, autor, ano)
 cadastrarUsuario(nome, email)
 listarLivros()
@@ -645,6 +685,8 @@ agruparPorAutor()
 emprestar(titulo, email)
 devolver(titulo)
 listarEmprestados()
+listarDisponiveis()
+listarHistoricoEmprestimos()
 validarDadosCarregados()
 ```
 
@@ -654,13 +696,25 @@ As listagens de cadastros retornam cópias não modificáveis da estrutura das l
 
 ---
 
+## `RegistroEmprestimo.java`
+
+Record imutável e serializável com `titulo`, `nomeUsuario`, `emailUsuario` e `dataHora` (`LocalDateTime`). Conserva os dados de cada retirada mesmo após a devolução. O construtor valida os campos e `toString()` formata o registro para o console.
+
+---
+
+## `LivroIndisponivelException.java`
+
+Exceção específica para a tentativa de emprestar um livro indisponível. Herda de `RegraNegocioException`, preservando o tratamento de erros existente na interface.
+
+---
+
 ## `BibliotecaArquivo.java`
 
 Responsável pela leitura e gravação da biblioteca.
 
 Principais métodos:
 
-```java
+```text
 Biblioteca carregar() throws IOException
 void salvar(Biblioteca biblioteca) throws IOException
 ```
@@ -707,7 +761,7 @@ Responsável pela leitura e conversão das entradas.
 
 Possui os métodos:
 
-```java
+```text
 String texto(String mensagem)
 int inteiro(String mensagem)
 ```
@@ -742,6 +796,8 @@ Verifica:
 * devolução e rejeição de devolução repetida;
 * persistência de livros, usuários e vínculo do empréstimo;
 * persistência da devolução;
+* filtro de disponíveis, histórico preservado e datas das retiradas;
+* rejeição com `LivroIndisponivelException`;
 * preservação de arquivo corrompido;
 * falha de gravação diante de destino inválido.
 
@@ -753,7 +809,7 @@ Verifica:
 
 O sistema utiliza tipos genéricos para representar cada coleção:
 
-```java
+```text
 List<Livro>
 List<Usuario>
 Map<String, List<Livro>>
@@ -765,7 +821,7 @@ A apresentação de listas utiliza `List<?>`, permitindo exibir diferentes tipos
 
 O nome pesquisado é normalizado antes do filtro:
 
-```java
+```text
 String busca = Usuario.textoObrigatorio(autor, "Autor")
         .toLowerCase(Locale.ROOT);
 
@@ -776,7 +832,7 @@ return livros.stream()
 
 ## Ordenação por título
 
-```java
+```text
 return livros.stream().sorted().toList();
 ```
 
@@ -784,7 +840,7 @@ return livros.stream().sorted().toList();
 
 ## Ordenação por ano
 
-```java
+```text
 return livros.stream()
         .sorted(Comparator.comparingInt(Livro::getAnoPublicacao)
                 .thenComparing(Comparator.naturalOrder()))
@@ -793,7 +849,7 @@ return livros.stream()
 
 ## Agrupamento por autor
 
-```java
+```text
 return livros.stream()
         .sorted()
         .collect(Collectors.groupingBy(
@@ -804,7 +860,7 @@ return livros.stream()
 
 ## Filtro de empréstimos
 
-```java
+```text
 return livros.stream().filter(Livro::isEmprestado).toList();
 ```
 
@@ -812,7 +868,7 @@ return livros.stream().filter(Livro::isEmprestado).toList();
 
 # Armazenamento e persistência
 
-Durante a execução, os dados ficam nas coleções da classe `Biblioteca`. A persistência serializa a biblioteca inteira, mantendo juntos livros, usuários e os vínculos dos empréstimos.
+Durante a execução, os dados ficam nas coleções da classe `Biblioteca`. A persistência serializa a biblioteca inteira, mantendo juntos livros, usuários, os vínculos dos empréstimos atuais e o histórico de retiradas.
 
 Arquivo padrão:
 
@@ -924,6 +980,9 @@ Os cadastros permanecem no arquivo e são recuperados na próxima abertura usand
 * empréstimos exigem livro e usuário cadastrados;
 * cada livro possui, no máximo, um empréstimo ativo;
 * livros emprestados ficam indisponíveis até a devolução;
+* é possível listar somente livros disponíveis;
+* cada retirada bem-sucedida acrescenta um registro persistente ao histórico;
+* a devolução não apaga retiradas anteriores;
 * a devolução remove o vínculo com o usuário;
 * listagens de empréstimos mostram livro e usuário responsável;
 * falhas de negócio retornam ao menu com mensagem;
@@ -972,7 +1031,7 @@ Configure `src` como `Sources Root` e, se necessário, `tests` como `Test Source
 
 Abra `src/Main.java` e execute:
 
-```java
+```text
 public static void main(String[] args)
 ```
 
@@ -1047,4 +1106,4 @@ Projeto acadêmico funcional para gerenciamento simplificado de uma biblioteca d
 
 O sistema demonstra cadastro e consulta de entidades, regras de empréstimo e devolução, tratamento de erros, processamento de coleções e persistência de objetos em arquivo.
 
-Esta versão não inclui histórico de empréstimos, múltiplos exemplares por título, ISBN, multas, prazos de devolução, autenticação ou controle de uso simultâneo por várias instâncias.
+Esta versão inclui o histórico de empréstimos. Não inclui múltiplos exemplares por título, ISBN, multas, prazos de devolução, autenticação ou controle de uso simultâneo por várias instâncias.

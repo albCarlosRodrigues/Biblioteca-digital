@@ -21,7 +21,8 @@ public final class BibliotecaArquivo {
         try (ObjectInputStream entrada = new ObjectInputStream(Files.newInputStream(arquivo))) {
             entrada.setObjectInputFilter(ObjectInputFilter.Config.createFilter(
                     "maxdepth=20;maxrefs=100000;maxbytes=20000000;maxarray=100000;"
-                    + "model.Biblioteca;model.Livro;model.Usuario;java.util.ArrayList;java.lang.Object;java.lang.String;!*"));
+                    + "model.Biblioteca;model.Livro;model.Usuario;model.RegistroEmprestimo;"
+                    + "java.time.Ser;java.time.LocalDateTime;java.util.ArrayList;java.lang.Object;java.lang.String;!*"));
             Object objeto = entrada.readObject();
             if (!(objeto instanceof Biblioteca biblioteca)) throw new IOException("Conteúdo incompatível.");
             biblioteca.validarDadosCarregados();
